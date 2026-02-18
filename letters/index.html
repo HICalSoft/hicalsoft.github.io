@@ -706,7 +706,7 @@
         const globalIdx = parseInt(hash.substring(8));
         if (globalIdx >= 0 && globalIdx < allLetters.length) {
           const letter = allLetters[globalIdx];
-          if (currentFilter !== null && letter.a !== currentFilter) {
+          if (filteredLetters.length === 0 || (currentFilter !== null && letter.a !== currentFilter)) {
             currentFilter = null;
             filteredLetters = [...allLetters];
             renderAuthorList($('#authorSearch').value);

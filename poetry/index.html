@@ -707,7 +707,7 @@
         const globalIdx = parseInt(hash.substring(6));
         if (globalIdx >= 0 && globalIdx < allPoems.length) {
           const poem = allPoems[globalIdx];
-          if (currentFilter !== null && poem.a !== currentFilter) {
+          if (filteredPoems.length === 0 || (currentFilter !== null && poem.a !== currentFilter)) {
             currentFilter = null;
             filteredPoems = [...allPoems];
             renderAuthorList($('#authorSearch').value);
