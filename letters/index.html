@@ -438,6 +438,7 @@
     <div class="header-left">
       <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">☰</button>
       <a href="/">← HICalSoft</a>
+      <a href="/poetry/">Poetry</a>
     </div>
     <h1>✉ <span>Love</span> Letters</h1>
     <button class="btn btn-accent" id="randomBtn">✦ Random Letter</button>
@@ -518,7 +519,11 @@
 
     function init() {
       renderAuthorList();
-      applyFilter(null);
+      if (window.location.hash) {
+        handleHash();
+      } else {
+        applyFilter(null, false);
+      }
       bindEvents();
     }
 
@@ -556,18 +561,18 @@
     }
 
     // ── Filter letters ──
-    function applyFilter(author) {
+    function applyFilter(author, pushHistory) {
       currentFilter = author;
       filteredLetters = author
         ? allLetters.filter(l => l.a === author)
         : [...allLetters];
       currentIndex = -1;
-      showList();
+      showList(pushHistory);
       renderAuthorList($('#authorSearch').value);
     }
 
     // ── Show letter list ──
-    function showList() {
+    function showList(pushHistory) {
       viewMode = 'list';
       $('#letterDetail').classList.remove('active');
       const panel = $('#letterListPanel');
@@ -601,10 +606,13 @@
       });
 
       panel.scrollTop = 0;
+      if (pushHistory !== false) {
+        history.pushState(null, '', currentFilter ? '#author-' + encodeURIComponent(currentFilter) : window.location.pathname);
+      }
     }
 
     // ── Show letter detail ──
-    function openLetter(idx) {
+    function openLetter(idx, pushHistory) {
       currentIndex = idx;
       viewMode = 'detail';
       const l = filteredLetters[idx];
@@ -626,6 +634,10 @@
       $('#prevBtn').disabled = idx <= 0;
       $('#nextBtn').disabled = idx >= filteredLetters.length - 1;
       autoFitFont();
+      if (pushHistory !== false) {
+        const globalIdx = allLetters.indexOf(l);
+        history.pushState(null, '', '#letter-' + globalIdx);
+      }
     }
 
     // ── Font size auto-fit and manual controls ──
@@ -687,6 +699,31 @@
       openLetter(idx);
     }
 
+    // ── URL hash routing ──
+    function handleHash() {
+      const hash = window.location.hash;
+      if (hash.startsWith('#letter-')) {
+        const globalIdx = parseInt(hash.substring(8));
+        if (globalIdx >= 0 && globalIdx < allLetters.length) {
+          const letter = allLetters[globalIdx];
+          if (currentFilter !== null && letter.a !== currentFilter) {
+            currentFilter = null;
+            filteredLetters = [...allLetters];
+            renderAuthorList($('#authorSearch').value);
+          }
+          const idx = filteredLetters.indexOf(letter);
+          if (idx !== -1) openLetter(idx, false);
+        }
+      } else if (hash.startsWith('#author-')) {
+        const author = decodeURIComponent(hash.substring(8));
+        if (authors[author] !== undefined) {
+          applyFilter(author, false);
+        }
+      } else {
+        applyFilter(null, false);
+      }
+    }
+
     // ── Events ──
     function bindEvents() {
       $('#randomBtn').addEventListener('click', showRandom);
@@ -707,6 +744,7 @@
       });
       $('#menuToggle').addEventListener('click', toggleSidebar);
       $('#overlay').addEventListener('click', closeSidebar);
+      window.addEventListener('popstate', handleHash);
 
       window.addEventListener('resize', () => {
         if (viewMode === 'detail' && fontOverride === null) autoFitFont();

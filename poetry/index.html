@@ -443,6 +443,7 @@
     <div class="header-left">
       <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">☰</button>
       <a href="/">← HICalSoft</a>
+      <a href="/letters/">Letters</a>
     </div>
     <h1>📜 <span>Poetry</span> Collection</h1>
     <button class="btn btn-accent" id="randomBtn">✦ Random Poem</button>
@@ -523,7 +524,11 @@
 
     function init() {
       renderAuthorList();
-      applyFilter(null);
+      if (window.location.hash) {
+        handleHash();
+      } else {
+        applyFilter(null, false);
+      }
       bindEvents();
     }
 
@@ -560,18 +565,18 @@
     }
 
     // ── Filter poems ──
-    function applyFilter(author) {
+    function applyFilter(author, pushHistory) {
       currentFilter = author;
       filteredPoems = author
         ? allPoems.filter(p => p.a === author)
         : [...allPoems];
       currentIndex = -1;
-      showList();
+      showList(pushHistory);
       renderAuthorList($('#authorSearch').value);
     }
 
     // ── Show poem list ──
-    function showList() {
+    function showList(pushHistory) {
       viewMode = 'list';
       $('#poemDetail').classList.remove('active');
       const panel = $('#poemListPanel');
@@ -605,10 +610,13 @@
       });
 
       panel.scrollTop = 0;
+      if (pushHistory !== false) {
+        history.pushState(null, '', currentFilter ? '#poet-' + encodeURIComponent(currentFilter) : window.location.pathname);
+      }
     }
 
     // ── Show poem detail ──
-    function openPoem(idx) {
+    function openPoem(idx, pushHistory) {
       currentIndex = idx;
       viewMode = 'detail';
       const p = filteredPoems[idx];
@@ -630,6 +638,10 @@
       $('#prevBtn').disabled = idx <= 0;
       $('#nextBtn').disabled = idx >= filteredPoems.length - 1;
       autoFitFont();
+      if (pushHistory !== false) {
+        const globalIdx = allPoems.indexOf(p);
+        history.pushState(null, '', '#poem-' + globalIdx);
+      }
     }
 
     // ── Font size auto-fit and manual controls ──
@@ -688,6 +700,31 @@
       openPoem(idx);
     }
 
+    // ── URL hash routing ──
+    function handleHash() {
+      const hash = window.location.hash;
+      if (hash.startsWith('#poem-')) {
+        const globalIdx = parseInt(hash.substring(6));
+        if (globalIdx >= 0 && globalIdx < allPoems.length) {
+          const poem = allPoems[globalIdx];
+          if (currentFilter !== null && poem.a !== currentFilter) {
+            currentFilter = null;
+            filteredPoems = [...allPoems];
+            renderAuthorList($('#authorSearch').value);
+          }
+          const idx = filteredPoems.indexOf(poem);
+          if (idx !== -1) openPoem(idx, false);
+        }
+      } else if (hash.startsWith('#poet-')) {
+        const author = decodeURIComponent(hash.substring(6));
+        if (authors[author] !== undefined) {
+          applyFilter(author, false);
+        }
+      } else {
+        applyFilter(null, false);
+      }
+    }
+
     // ── Events ──
     function bindEvents() {
       $('#randomBtn').addEventListener('click', showRandom);
@@ -708,6 +745,7 @@
       });
       $('#menuToggle').addEventListener('click', toggleSidebar);
       $('#overlay').addEventListener('click', closeSidebar);
+      window.addEventListener('popstate', handleHash);
 
       window.addEventListener('resize', () => {
         if (viewMode === 'detail' && fontOverride === null) autoFitFont();
