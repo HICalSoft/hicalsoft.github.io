@@ -82,7 +82,16 @@ Poetry uses `"poems"` instead of `"letters"`, and `"t"` (title) instead of `"r"`
 
 ### Data Regeneration
 
-The JSON data files are generated from the main `letters` repository. See that repo's CLAUDE.md for the regeneration process. After regenerating, copy the files here and commit.
+The JSON data files are generated from the main `letters` repository using `generate_web_data.py`:
+
+```bash
+# From the letters/ project root:
+python3 generate_web_data.py              # Regenerates both letters.json and poetry.json
+python3 generate_web_data.py --letters    # Letters only
+python3 generate_web_data.py --poetry     # Poetry only
+```
+
+This reads the individual JSON files from `letters/` and `poetry/` and writes combined data to `hicalsoft.github.io/*/data/`. See the main repo's CLAUDE.md for the full pipeline (downloading sources → parsing → generating web data).
 
 ## Change Log
 
