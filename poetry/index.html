@@ -279,11 +279,39 @@
       align-items: center;
       gap: 0.75rem;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .poem-detail-toolbar .nav-info {
       font-size: 0.8rem;
       color: var(--text-dim);
       margin-left: auto;
+    }
+    .font-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-left: 0.5rem;
+    }
+    .font-controls button {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-muted);
+      border-radius: 4px;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .font-controls button:hover { background: rgba(255,255,255,0.15); }
+    .font-controls .font-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      min-width: 28px;
+      text-align: center;
     }
     .poem-detail-content {
       flex: 1;
@@ -450,6 +478,11 @@
           <button class="btn" id="backBtn">← Back</button>
           <button class="btn" id="prevBtn">‹ Prev</button>
           <button class="btn" id="nextBtn">Next ›</button>
+          <div class="font-controls">
+            <button id="fontDown" title="Decrease font size">A−</button>
+            <span class="font-label" id="fontLabel">auto</span>
+            <button id="fontUp" title="Increase font size">A+</button>
+          </div>
           <span class="nav-info" id="navInfo"></span>
         </div>
         <div class="poem-detail-content" id="poemContent"></div>
@@ -467,6 +500,10 @@
     let filteredPoems = [];
     let currentIndex = -1;
     let viewMode = 'list';
+    let fontOverride = null;
+    const FONT_MIN = 8;
+    const FONT_MAX = 28;
+    const FONT_DEFAULT = 18.4;
 
     const $ = s => document.querySelector(s);
     const $$ = s => document.querySelectorAll(s);
@@ -592,6 +629,46 @@
       $('#poemContent').scrollTop = 0;
       $('#prevBtn').disabled = idx <= 0;
       $('#nextBtn').disabled = idx >= filteredPoems.length - 1;
+      autoFitFont();
+    }
+
+    // ── Font size auto-fit and manual controls ──
+    function autoFitFont() {
+      const bodyEl = $('#poemContent .detail-body');
+      if (!bodyEl) return;
+      const container = $('#poemContent');
+      const containerW = container.clientWidth - 32;
+      if (fontOverride !== null) {
+        bodyEl.style.fontSize = fontOverride + 'px';
+        $('#fontLabel').textContent = Math.round(fontOverride) + 'px';
+        return;
+      }
+      const text = bodyEl.textContent || '';
+      const linesArr = text.split('\n');
+      let maxLen = 0;
+      for (const line of linesArr) {
+        if (line.length > maxLen) maxLen = line.length;
+      }
+      if (maxLen <= 0) maxLen = 1;
+      const charRatio = 0.52;
+      let idealSize = containerW / (maxLen * charRatio);
+      idealSize = Math.max(FONT_MIN, Math.min(FONT_MAX, idealSize));
+      bodyEl.style.fontSize = idealSize + 'px';
+      $('#fontLabel').textContent = 'auto';
+    }
+
+    function adjustFont(delta) {
+      const bodyEl = $('#poemContent .detail-body');
+      if (!bodyEl) return;
+      const current = parseFloat(bodyEl.style.fontSize) || FONT_DEFAULT;
+      fontOverride = Math.max(FONT_MIN, Math.min(FONT_MAX, current + delta));
+      bodyEl.style.fontSize = fontOverride + 'px';
+      $('#fontLabel').textContent = Math.round(fontOverride) + 'px';
+    }
+
+    function resetFontAuto() {
+      fontOverride = null;
+      autoFitFont();
     }
 
     // ── Random poem ──
@@ -621,11 +698,20 @@
       $('#nextBtn').addEventListener('click', () => {
         if (currentIndex < filteredPoems.length - 1) openPoem(currentIndex + 1);
       });
+      $('#fontDown').addEventListener('click', () => adjustFont(-2));
+      $('#fontUp').addEventListener('click', () => adjustFont(2));
+      $('#fontLabel').addEventListener('click', resetFontAuto);
+      $('#fontLabel').style.cursor = 'pointer';
+      $('#fontLabel').title = 'Click to reset to auto';
       $('#authorSearch').addEventListener('input', e => {
         renderAuthorList(e.target.value);
       });
       $('#menuToggle').addEventListener('click', toggleSidebar);
       $('#overlay').addEventListener('click', closeSidebar);
+
+      window.addEventListener('resize', () => {
+        if (viewMode === 'detail' && fontOverride === null) autoFitFont();
+      });
 
       document.addEventListener('keydown', e => {
         if (viewMode === 'detail') {
