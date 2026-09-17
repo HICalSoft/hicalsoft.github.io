@@ -1,0 +1,39 @@
+[Unit]
+Description=HICalSoft /connect signaling relay + TURN server
+After=network.target
+
+[Service]
+Type=simple
+User=connect-server
+Group=connect-server
+ExecStart=/opt/connect-server/connect-server
+Restart=on-failure
+RestartSec=5
+
+# --- Required ---
+Environment=PUBLIC_IP=REPLACE_WITH_YOUR_PIS_PUBLIC_IP
+
+# --- Optional overrides (defaults shown) ---
+# Environment=HTTP_ADDR=127.0.0.1:8091
+# Environment=TURN_PORT=3478
+# Environment=TURN_MIN_RELAY_PORT=49160
+# Environment=TURN_MAX_RELAY_PORT=49460
+# Environment=TURN_REALM=connect.marryislam.org
+# Environment=TURN_CREDENTIAL_TTL=1h
+#
+# TURN_SHARED_SECRET is auto-generated at each process start if unset, which
+# is fine (credentials are minted and consumed within the same process
+# lifetime). Set it explicitly only if you have a specific reason to pin it
+# across restarts.
+# Environment=TURN_SHARED_SECRET=
+
+# Allow binding to low ports (3478 is >1024 so not strictly required, but
+# harmless to keep) and restrict filesystem access since this process only
+# needs network sockets.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

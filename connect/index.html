@@ -357,13 +357,18 @@
   </main>
 
   <script type="module">
-    import { joinRoom } from 'https://esm.run/trystero@0.25.4';
+    import { createTopicStrategy, toJson } from 'https://esm.run/@trystero-p2p/core@0.25.4';
 
     const APP_ID = 'hicalsoft-connect-v1';
+    // Self-hosted signaling relay + TURN server (see /connect-server in the repo),
+    // running on our own Raspberry Pi — no third-party matchmaking/relay services.
+    const RELAY_WS_URL = 'wss://connect.marryislam.org/ws';
+    const TURN_CREDENTIALS_URL = 'https://connect.marryislam.org/turn-credentials';
+
     const params = new URLSearchParams(location.search);
     const roomId = params.get('room') || 'lobby';
     const isPrivate = params.has('room');
-    const room = joinRoom({ appId: APP_ID }, roomId);
+    let room; // assigned once TURN credentials are fetched, see bottom of file
 
     const roomBanner = document.getElementById('roomBanner');
     const soloView = document.getElementById('soloView');
@@ -533,35 +538,80 @@
     });
 
     leaveBtn.addEventListener('click', () => {
-      room.leave();
+      if (room) room.leave();
       teardownLocalStream();
       location.reload();
     });
 
-    room.onPeerJoin = async peerId => {
-      peers.add(peerId);
-      updateStatus();
-      showCallView();
-      const stream = await ensureLocalStream();
-      if (stream) room.addStream(stream, peerId);
-    };
+    // Custom Trystero signaling strategy that talks to our own Go relay
+    // (protocol: {"type":"subscribe"|"unsubscribe"|"publish","topic","payload"}
+    // in, {"topic","payload"} broadcast out — see connect-server/internal/relay).
+    const joinSelfHostedRoom = createTopicStrategy({
+      init: config => new Promise((resolve, reject) => {
+        const ws = new WebSocket(config.relayConfig.urls[0]);
+        ws.addEventListener('open', () => resolve(ws), { once: true });
+        ws.addEventListener('error', reject, { once: true });
+      }),
+      subscribeTopic: (client, topic, onMessage) => {
+        const onWsMessage = event => {
+          const message = JSON.parse(String(event.data));
+          if (message.topic !== topic) return;
+          onMessage(message.topic, message.payload);
+        };
+        client.addEventListener('message', onWsMessage);
+        client.send(toJson({ type: 'subscribe', topic }));
+        return () => {
+          client.send(toJson({ type: 'unsubscribe', topic }));
+          client.removeEventListener('message', onWsMessage);
+        };
+      },
+      publishTopic: (client, topic, payload) =>
+        client.send(toJson({ type: 'publish', topic, payload })),
+    });
 
-    room.onPeerStream = (stream, peerId) => {
-      addRemoteTile(stream, peerId);
-    };
-
-    room.onPeerLeave = peerId => {
-      peers.delete(peerId);
-      removeTile(peerId);
-      updateStatus();
-      if (peers.size === 0) {
-        teardownLocalStream();
-        showSoloView();
+    async function fetchTurnConfig() {
+      try {
+        const res = await fetch(TURN_CREDENTIALS_URL, { cache: 'no-store' });
+        if (!res.ok) return undefined;
+        const data = await res.json();
+        return data.iceServers;
+      } catch (err) {
+        console.warn('Could not reach TURN credential server — continuing without a relay fallback:', err);
+        return undefined;
       }
-    };
+    }
+
+    (async () => {
+      const turnConfig = await fetchTurnConfig();
+      const roomConfig = { appId: APP_ID, relayConfig: { urls: [RELAY_WS_URL] } };
+      if (turnConfig) roomConfig.turnConfig = turnConfig;
+      room = joinSelfHostedRoom(roomConfig, roomId);
+
+      room.onPeerJoin = async peerId => {
+        peers.add(peerId);
+        updateStatus();
+        showCallView();
+        const stream = await ensureLocalStream();
+        if (stream) room.addStream(stream, peerId);
+      };
+
+      room.onPeerStream = (stream, peerId) => {
+        addRemoteTile(stream, peerId);
+      };
+
+      room.onPeerLeave = peerId => {
+        peers.delete(peerId);
+        removeTile(peerId);
+        updateStatus();
+        if (peers.size === 0) {
+          teardownLocalStream();
+          showSoloView();
+        }
+      };
+    })();
 
     window.addEventListener('beforeunload', () => {
-      try { room.leave(); } catch (e) { /* noop */ }
+      try { if (room) room.leave(); } catch (e) { /* noop */ }
     });
   </script>
 </body>
