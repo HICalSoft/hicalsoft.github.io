@@ -362,8 +362,8 @@
     const APP_ID = 'hicalsoft-connect-v1';
     // Self-hosted signaling relay + TURN server (see /connect-server in the repo),
     // running on our own Raspberry Pi — no third-party matchmaking/relay services.
-    const RELAY_WS_URL = 'wss://connect.marryislam.org/ws';
-    const TURN_CREDENTIALS_URL = 'https://connect.marryislam.org/turn-credentials';
+    const RELAY_WS_URL = 'wss://connect.hicalsoft.com/ws';
+    const TURN_CREDENTIALS_URL = 'https://connect.hicalsoft.com/turn-credentials';
 
     const params = new URLSearchParams(location.search);
     const roomId = params.get('room') || 'lobby';

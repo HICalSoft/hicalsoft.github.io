@@ -43,7 +43,7 @@ func main() {
 	turnPort := flag.Int("turn-port", envOrInt("TURN_PORT", 3478), "UDP/TCP port for the TURN/STUN server")
 	minRelayPort := flag.Int("min-relay-port", envOrInt("TURN_MIN_RELAY_PORT", 49160), "lowest port used for relayed media (forward this range on your router)")
 	maxRelayPort := flag.Int("max-relay-port", envOrInt("TURN_MAX_RELAY_PORT", 49460), "highest port used for relayed media (forward this range on your router)")
-	realm := flag.String("realm", envOr("TURN_REALM", "connect.marryislam.org"), "TURN realm")
+	realm := flag.String("realm", envOr("TURN_REALM", "connect.hicalsoft.com"), "TURN realm")
 	credentialTTL := flag.Duration("credential-ttl", envOrDuration("TURN_CREDENTIAL_TTL", time.Hour), "how long minted TURN credentials remain valid")
 	sharedSecret := flag.String("shared-secret", os.Getenv("TURN_SHARED_SECRET"), "shared secret for minting/verifying TURN credentials (random if unset)")
 	flag.Parse()
